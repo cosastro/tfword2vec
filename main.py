@@ -1,3 +1,4 @@
+#coding=utf-8
 import tensorflow as tf
 import numpy as np
 import math
@@ -58,7 +59,7 @@ class word2vec():
     def init_op(self):
         self.sess = tf.Session(graph=self.graph)
         self.sess.run(self.init)
-        self.summary_writer = tf.train.SummaryWriter(self.logdir, self.sess.graph)
+        self.summary_writer = tf.summary.FileWriter(self.logdir, self.sess.graph)
 
     def build_graph(self):
         self.graph = tf.Graph()
@@ -88,7 +89,7 @@ class word2vec():
             )
 
             # tensorboard 相关
-            tf.scalar_summary('loss',self.loss)  # 让tensorflow记录参数
+            tf.summary.scalar('loss',self.loss)  # 让tensorflow记录参数
 
             # 根据 nce loss 来更新梯度和embedding
             self.train_op = tf.train.GradientDescentOptimizer(learning_rate=0.1).minimize(self.loss)  # 训练操作
@@ -100,7 +101,7 @@ class word2vec():
             )
 
             avg_l2_model = tf.reduce_mean(vec_l2_model)
-            tf.scalar_summary('avg_vec_model',avg_l2_model)
+            tf.summary.scalar('avg_vec_model',avg_l2_model)
 
             self.normed_embedding = self.embedding_dict / vec_l2_model
             # self.embedding_dict = norm_vec # 对embedding向量正则化
@@ -110,7 +111,7 @@ class word2vec():
             # 变量初始化
             self.init = tf.global_variables_initializer()
 
-            self.merged_summary_op = tf.merge_all_summaries()
+            self.merged_summary_op = tf.summary.merge_all()
 
             self.saver = tf.train.Saver()
 
@@ -118,6 +119,7 @@ class word2vec():
         #  input_sentence: [sub_sent1, sub_sent2, ...]
         # 每个sub_sent是一个单词序列，例如['这次','大选','让']
         sent_num = input_sentence.__len__()
+        print sent_num
         batch_inputs = []
         batch_labels = []
         for sent in input_sentence:
@@ -131,7 +133,9 @@ class word2vec():
                         input_id = self.word2id.get(sent[i])
                         label_id = self.word2id.get(sent[index])
                         if not (input_id and label_id):
+                            print "deleted,input_id:",input_id,",label_id:",label_id,",sent[i]=",sent[i],",i=",i,",sent[index]=",sent[index],"index=",index
                             continue
+                        print "sent[i]=",sent[i],",i=",i,",sent[index]=",sent[index],"index=",index
                         batch_inputs.append(input_id)
                         batch_labels.append(label_id)
         if len(batch_inputs)==0:
@@ -139,6 +143,10 @@ class word2vec():
         batch_inputs = np.array(batch_inputs,dtype=np.int32)
         batch_labels = np.array(batch_labels,dtype=np.int32)
         batch_labels = np.reshape(batch_labels,[batch_labels.__len__(),1])
+        print batch_inputs
+        print batch_labels
+
+        exit()
 
         feed_dict = {
             self.train_inputs: batch_inputs,
@@ -246,7 +254,7 @@ if __name__=='__main__':
     # step2 读取文本，预处理，分词，得到词典
     raw_word_list = []
     sentence_list = []
-    with open('280.txt',encoding='gbk') as f:
+    with open('280.txt') as f:
         line = f.readline()
         while line:
             while '\n' in line:
@@ -255,6 +263,7 @@ if __name__=='__main__':
                 line = line.replace(' ','')
             if len(line)>0: # 如果句子非空
                 raw_words = list(jieba.cut(line,cut_all=False))
+                #print str(raw_words).decode('unicode_escape').encode('utf-8')
                 dealed_words = []
                 for word in raw_words:
                     if word not in stop_words and word not in ['qingkan520','www','com','http']:
@@ -267,6 +276,11 @@ if __name__=='__main__':
           .format(n1=len(raw_word_list),n2=len(word_count)))
     word_count = word_count.most_common(30000)
     word_list = [x[0] for x in word_count]
+    #print(word_list)
+    fo = open("t", "w")
+    #fo.write(str(word_list).decode('utf-8'))
+    fo.write(str(word_list))
+    fo.close()
 
     # 创建模型，训练
     w2v = word2vec(vocab_list=word_list,    # 词典集
@@ -276,10 +290,10 @@ if __name__=='__main__':
                    num_sampled=100,         # 负采样个数
                    logdir='/tmp/280')       # tensorboard记录地址
     test_word = ['萧炎','灵魂','火焰','长老','尊者','皱眉']
-    test_id = [word_list.index(x) for x in test_word]
+    #test_id = [word_list.index(x) for x in test_word]
     num_steps = 100000
-    for i in range(num_steps):
+    #for i in range(num_steps):
+    for i in range(2):
         sent = sentence_list[i%len(sentence_list)]
+        print str(sent).decode('unicode_escape').encode('utf-8')
         w2v.train_by_sentence([sent])
-
-
